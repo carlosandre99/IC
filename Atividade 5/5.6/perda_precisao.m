@@ -1,10 +1,73 @@
 clc; clear all; close all;
 load('in_out_SBRT2_direto.mat');
 
+P = 4; 
+M = 4;
+N = length(in_extraction);
+
+fc_mod = 900e6;  
+fs1 = 61.44e6;   
+fs2 = 8.97024e9; 
+alfa = 0;
+phi = 0;
+
+% NMSE ideal
+fc_demod = 900e6;
+[out_extraction_mod_ideal, ~] = modulacao_demodulacao(out_extraction, out_validation, fc_mod, fc_demod, fs1, fs2, alfa, phi);
+
+XX_ideal = matriz_regressao(in_extraction, P, M, N);
+H_ideal = XX_ideal\ out_extraction;
+saida_estimada_ideal = XX_ideal * H_ideal;
+
+nmse_ideal = 10 * log10(sum(abs(out_extraction_mod_ideal - saida_estimada_ideal).^2) / sum(abs(out_extraction_mod_ideal).^2));
+disp('Modelagem direta: ');
+disp(' ');
+
+% NMSE não ideal
+fc_demod_values = 900e6:1e6:930e6;
+nmse_nao_ideal_array = zeros(1, length(fc_demod_values));
+perda_dB_sinal_array = zeros(1, length(fc_demod_values)); 
+perda_percentual_array = zeros(1, length(fc_demod_values)); % Array para armazenar a perda percentual
+
+for i = 1:length(fc_demod_values)
+    fc_demod = fc_demod_values(i);
+    omega1 = 2*pi*fc_mod;
+    omega2 = 2*pi*fc_demod;
+    t = (0:length(in_extraction)-1)'/fs1;
+    
+    in_nao_ideal = in_extraction .* exp(1j*(omega1 - omega2)*t);
+    out_nao_ideal = out_extraction .* exp(1j*(omega1 - omega2)*t);
+
+    [out_extraction_mod_nao_ideal, ~] = modulacao_demodulacao(out_extraction, out_validation, fc_mod, fc_demod, fs1, fs2, alfa, phi);
+
+    XX_nao_ideal = matriz_regressao(in_nao_ideal, P, M, N);
+    H_nao_ideal = XX_nao_ideal \ out_nao_ideal;
+    saida_estimada_nao_ideal = XX_nao_ideal * H_nao_ideal;
+
+    nmse_nao_ideal = 10 * log10(sum(abs(out_extraction_mod_nao_ideal - saida_estimada_nao_ideal).^2) / sum(abs(out_extraction_mod_nao_ideal).^2));
+    nmse_nao_ideal_array(i) = nmse_nao_ideal;
+
+    perda_dB_sinal_array(i) = nmse_ideal - nmse_nao_ideal;
+    
+    % Perda(dB)=10*log10(1-Perda(%))
+    perda_percentual_array(i) = (1 - 10^(perda_dB_sinal_array(i)/10))*100; 
+
+    disp(['fc_demod = ', num2str(fc_demod/1e6), ' MHz ', char(8594), ' NMSE = ', num2str(nmse_nao_ideal), ' dB ', char(8594),  ' ', num2str(perda_percentual_array(i)), '%']);
+
+end
+
+figure;
+hold on;
+box on;
+plot(fc_demod_values/1e6, perda_percentual_array, 'b-^', 'LineWidth', 1.5, 'MarkerSize', 3);
+xlabel('Frequência de demodulação (MHz)');
+ylabel('Perda de precisão (%)');
+ylim([-1 100]);  
+
 % Troca de in_extraction e out_extraction
-% temp = in_extraction;
-% in_extraction = out_extraction;
-% out_extraction = temp;
+temp = in_extraction;
+in_extraction = out_extraction;
+out_extraction = temp;
 
 P = 4; 
 M = 4;
@@ -25,6 +88,9 @@ H_ideal = XX_ideal\ out_extraction;
 saida_estimada_ideal = XX_ideal * H_ideal;
 
 nmse_ideal = 10 * log10(sum(abs(out_extraction_mod_ideal - saida_estimada_ideal).^2) / sum(abs(out_extraction_mod_ideal).^2));
+disp(' ');
+disp('Modelagem inversa: ');
+disp(' ');
 
 % NMSE não ideal
 fc_demod_values = 900e6:1e6:930e6;
@@ -59,11 +125,12 @@ for i = 1:length(fc_demod_values)
 
 end
 
-figure;
-plot(fc_demod_values/1e6, perda_percentual_array, 'b-^', 'LineWidth', 1, 'MarkerSize', 3);
+plot(fc_demod_values/1e6, perda_percentual_array, 'k-^', 'LineWidth', 1.5, 'MarkerSize', 3);
 xlabel('Frequência de demodulação (MHz)');
 ylabel('Perda de precisão (%)');
 ylim([-1 100]);  
+legend("Modelagem direta", "Modelagem inversa", 'Location', 'best');
+hold off;
 
 function XX = matriz_regressao(sinal, P, M, N)
     XX = zeros(N, P * (M+1));

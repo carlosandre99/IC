@@ -84,11 +84,11 @@ legend;
 % abs(out) x abs(in) - Saída MP
 figure;
 hold on;
-plot(abs(in_nao_ideal), abs(out_extraction_mod_nao_ideal), 'bp', 'DisplayName', 'Desejado');
-plot(abs(in_nao_ideal), abs(saida_estimada_nao_ideal), 'rh', 'DisplayName', 'Estimado');
+plot(abs(in_nao_ideal), abs(out_extraction_mod_nao_ideal), 'bo', 'DisplayName', 'Curva PA');
+plot(abs(in_nao_ideal), abs(saida_estimada_nao_ideal), 'ro', 'DisplayName', 'Curva estimada');
 xlabel('|in|');
 ylabel('|out|');
-title(['AM-AM (fc\_demod = ', num2str(fc_demod/1e6), ' MHz)']);  
+%title(['AM-AM (fc\_demod = ', num2str(fc_demod/1e6), ' MHz)']);  
 legend('Location', 'Best');
 
 % Primeiras 200 amostras
